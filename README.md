@@ -1,6 +1,6 @@
 # phixiv
 
-[pixiv](https://www.pixiv.net/) embed fixer. If you run into any issues or have any suggestions to make this service better, please [make an issue](https://github.com/HazelTheWitch/phixiv/issues/new).
+[pixiv](https://www.pixiv.net/) embed fixer. If you run into any issues or have any suggestions to make this service better, please [make an issue](https://github.com/thelaao/phixiv/issues/new).
 
 ## How to use
 
@@ -10,7 +10,7 @@ Additionally, when embedding a post with multiple images, add `/<index>` to the 
 
 ## Path Formats
 
-The following are the valid paths for artworks, if there is a format which isn't listed which should be embedded, please [make an issue](https://github.com/HazelTheWitch/phixiv/issues/new).
+The following are the valid paths for artworks, if there is a format which isn't listed which should be embedded, please [make an issue](https://github.com/thelaao/phixiv/issues/new).
 
 ```text
 /artworks/:id
