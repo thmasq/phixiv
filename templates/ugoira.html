@@ -8,9 +8,11 @@
     <meta property="og:title" content="{{ title }}" />
     <meta property="og:description" content="{{ description }}" />
     <meta property="og:url" content="{{ url }}" />
-    <meta property="og:image" content="{{ image_proxy_url }}" />
-    <meta property="og:image:alt" content="{{ alt_text }}" />
-    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="og:video" content="{{ image_proxy_url }}" />
+    <meta property="og:video:secure_url" content="{{ image_proxy_url }}" />
+    <meta property="og:video:type" content="video/mp4" />
+    <meta property="og:image" content="0" />
+    <meta name="twitter:card" content="player" />
     <link rel="alternate" type="application/json+oembed" href="https://{{ host }}/e?i={{ author_id }}&n={{ author_name }}">
 </head>
 <body>

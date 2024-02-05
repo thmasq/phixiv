@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{env, collections::HashMap};
 
 use askama::Template;
 use itertools::Itertools;
@@ -56,6 +56,19 @@ pub struct ArtworkTemplate {
     pub host: String,
 }
 
+#[derive(Debug, Serialize, Template)]
+#[template(path = "ugoira.html")]
+pub struct UgoiraTemplate {
+    pub image_proxy_url: String,
+    pub title: String,
+    pub description: String,
+    pub author_name: String,
+    pub author_id: String,
+    pub url: String,
+    pub alt_text: String,
+    pub host: String,
+}
+
 #[derive(Serialize)]
 /// Representing a listing of artworks, uniquely determined by language and illust_id
 pub struct ArtworkListing {
@@ -67,6 +80,7 @@ pub struct ArtworkListing {
     pub url: String,
     pub author_name: String,
     pub author_id: String,
+    pub is_ugoira: bool,
 }
 
 async fn app_request(
@@ -141,7 +155,13 @@ impl ArtworkListing {
             })
             .collect();
 
-        let image_proxy_urls = if app_response.illust.meta_pages.is_empty() {
+        let is_ugoira = ajax_response.body.illust_type == 2;
+        let ugoira_enabled = env::var("UGOIRA_ENABLED")
+            .unwrap_or_else(|_| String::from("false")) == "true";
+
+        let image_proxy_urls = if is_ugoira && ugoira_enabled {
+            vec![format!("https://{}/i/ugoira/{}.mp4", host, illust_id)]
+        } else if app_response.illust.meta_pages.is_empty() {
             let url = url::Url::parse(&app_response.illust.image_urls.large)?;
 
             vec![format!("https://{}/i{}", host, url.path())]
@@ -166,10 +186,11 @@ impl ArtworkListing {
             url: ajax_response.body.extra_data.meta.canonical,
             author_name: ajax_response.body.author_name,
             author_id: ajax_response.body.author_id,
+            is_ugoira,
         })
     }
 
-    pub fn to_template(self, image_index: Option<usize>, host: String) -> ArtworkTemplate {
+    pub fn to_template(self, image_index: Option<usize>, host: String) -> anyhow::Result<String> {
         let index = image_index
             .unwrap_or(1)
             .min(self.image_proxy_urls.len())
@@ -196,7 +217,20 @@ impl ArtworkListing {
         )
         .collect::<String>();
 
-        ArtworkTemplate {
+        if self.is_ugoira {
+            let template = UgoiraTemplate {
+                image_proxy_url,
+                title: self.title,
+                description,
+                author_name: self.author_name,
+                author_id: self.author_id,
+                url: self.url,
+                alt_text: tag_string,
+                host,
+            };
+            return Ok(template.render()?);
+        }
+        let template = ArtworkTemplate {
             image_proxy_url,
             title: self.title,
             description,
@@ -205,6 +239,7 @@ impl ArtworkListing {
             url: self.url,
             alt_text: tag_string,
             host,
-        }
+        };
+        Ok(template.render()?)
     }
 }

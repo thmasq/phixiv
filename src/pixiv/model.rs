@@ -45,6 +45,8 @@ pub(super) struct AjaxBody {
     pub author_name: String,
     #[serde(rename = "extraData")]
     pub extra_data: AjaxExtraData,
+    #[serde(rename = "illustType")]
+    pub illust_type: u8,
 }
 
 #[derive(Debug, Deserialize)]

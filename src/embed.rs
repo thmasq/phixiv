@@ -1,6 +1,5 @@
 use std::{env, sync::Arc};
 
-use askama::Template;
 use axum::{
     extract::{Host, OriginalUri, Path, Query, State},
     headers::{CacheControl, UserAgent},
@@ -37,11 +36,11 @@ async fn artwork_response(
     )
     .await?;
 
-    let artwork = listing.to_template(path.image_index, host);
+    let artwork = listing.to_template(path.image_index, host).unwrap();
 
     Ok((
         TypedHeader(CacheControl::new().with_no_cache()),
-        Html(artwork.render()?),
+        Html(artwork),
     )
         .into_response())
 }
