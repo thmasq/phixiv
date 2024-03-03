@@ -31,6 +31,7 @@ async fn proxy_handler(
     let response = state.client.get(&url).headers(headers).send().await?;
 
     Ok((
+        response.status(),
         TypedHeader(
             CacheControl::new()
                 .with_max_age(Duration::from_secs(60 * 60 * 24))
