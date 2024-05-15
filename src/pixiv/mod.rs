@@ -128,9 +128,10 @@ impl ArtworkListing {
         host: &str,
         client: &Client,
     ) -> anyhow::Result<Self> {
+        let clean_illust_id = illust_id.chars().take_while(|c| c.is_numeric()).collect::<String>();
         let (app_response, ajax_response) = tokio::try_join!(
-            app_request(&illust_id, access_token, client),
-            ajax_request(&illust_id, &language, client),
+            app_request(&clean_illust_id, access_token, client),
+            ajax_request(&clean_illust_id, &language, client),
         )?;
 
         let ai_generated = app_response.illust.illust_ai_type == 2;
