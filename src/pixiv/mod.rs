@@ -161,7 +161,7 @@ impl ArtworkListing {
             .unwrap_or_else(|_| String::from("false")) == "true";
 
         let image_proxy_urls = if is_ugoira && ugoira_enabled {
-            vec![format!("https://{}/i/ugoira/{}.mp4", host, illust_id)]
+            vec![format!("https://{}/i/ugoira/{}.mp4", host, clean_illust_id)]
         } else if app_response.illust.meta_pages.is_empty() {
             let url = url::Url::parse(&app_response.illust.image_urls.large)?;
 
