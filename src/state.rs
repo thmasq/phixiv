@@ -29,8 +29,8 @@ impl PhixivState {
 
 pub async fn authorized_middleware<B>(
     State(state): State<Arc<RwLock<PhixivState>>>,
-    request: Request<B>,
-    next: Next<B>,
+    request: Request<axum::body::Body>,
+    next: Next,
 ) -> Result<Response, PhixivError> {
     if state.read().await.auth.expired() {
         let mut state = state.write().await;

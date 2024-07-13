@@ -1,14 +1,15 @@
-use std::{sync::Arc, time::Duration, env};
+use std::{env, sync::Arc};
 
 use axum::{
-    body::StreamBody,
+    body::Body,
     extract::{Path, State},
-    headers::CacheControl,
     middleware,
     response::IntoResponse,
+    response::Response,
     routing::get,
-    Router, TypedHeader,
+    Router,
 };
+use http::header::{HeaderValue, CONTENT_TYPE};
 use tokio::sync::RwLock;
 
 use crate::{
@@ -30,19 +31,36 @@ async fn proxy_handler(
 
     let response = state.client.get(&url).headers(headers).send().await?;
 
-    Ok((
-        response.status(),
-        TypedHeader(
-            CacheControl::new()
-                .with_max_age(Duration::from_secs(60 * 60 * 24))
-                .with_public(),
-        ),
-        StreamBody::new(response.bytes_stream()),
-    ))
+    // Extract status and headers before consuming `response`
+    let status = response.status();
+    let content_type = response.headers().get(CONTENT_TYPE).cloned();
+
+    // Now consume `response` to get the bytes
+    let bytes = response.bytes().await?;
+
+    // Construct the response manually
+    let mut res = Response::new(Body::from(bytes));
+    *res.status_mut() = status;
+
+    // Insert the Content-Type header if it was present in the original response
+    if let Some(content_type) = content_type {
+        res.headers_mut().insert(CONTENT_TYPE, content_type);
+    } else {
+        // Default Content-Type if not specified
+        res.headers_mut().insert(
+            CONTENT_TYPE,
+            HeaderValue::from_static("application/octet-stream"),
+        );
+    }
+
+    Ok(res)
 }
 
 pub fn proxy_router(state: Arc<RwLock<PhixivState>>) -> Router<Arc<RwLock<PhixivState>>> {
     Router::new()
         .route("/*path", get(proxy_handler))
-        .layer(middleware::from_fn_with_state(state, authorized_middleware))
+        .layer(middleware::from_fn_with_state(
+            state,
+            authorized_middleware::<axum::body::Body>,
+        ))
 }

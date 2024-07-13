@@ -39,20 +39,7 @@ async fn main() -> anyhow::Result<()> {
         .with(fmt::layer())
         .with(EnvFilter::from_default_env());
 
-    if let Ok(loki_url) = env::var("LOKI_URL") {
-        let (layer, task) = tracing_loki::builder()
-            .label(
-                "environment",
-                env::var("ENVIRONMENT").unwrap_or_else(|_| String::from("development")),
-            )?
-            .build_url(url::Url::parse(&loki_url).unwrap())?;
-
-        tokio::spawn(task);
-
-        tracing_registry.with(layer).init();
-    } else {
-        tracing_registry.init();
-    }
+    tracing_registry.init();
 
     tracing::info!("Listening on: {addr}");
 
@@ -60,10 +47,8 @@ async fn main() -> anyhow::Result<()> {
         PhixivState::login(env::var("PIXIV_REFRESH_TOKEN")?).await?,
     ));
 
-    axum::Server::bind(&addr)
-        .serve(app(state).into_make_service())
-        .with_graceful_shutdown(shutdown_signal())
-        .await?;
+    let listener = tokio::net::TcpListener::bind(&addr).await?;
+    axum::serve(listener, app(state).into_make_service()).await?;
 
     Ok(())
 }
@@ -82,30 +67,6 @@ fn app(state: Arc<RwLock<PhixivState>>) -> Router {
         )
         .layer(NormalizePathLayer::trim_trailing_slash())
         .with_state(state)
-}
-
-async fn shutdown_signal() {
-    let ctrl_c = async {
-        tokio::signal::ctrl_c()
-            .await
-            .expect("failed to install Ctrl+C handler");
-    };
-
-    #[cfg(unix)]
-    let terminate = async {
-        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-            .expect("failed to install signal handler")
-            .recv()
-            .await;
-    };
-
-    #[cfg(not(unix))]
-    let terminate = std::future::pending::<()>();
-
-    tokio::select! {
-        _ = ctrl_c => {},
-        _ = terminate => {},
-    }
 }
 
 async fn health() -> impl IntoResponse {

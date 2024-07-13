@@ -2,12 +2,13 @@ use std::{env, sync::Arc};
 
 use axum::{
     extract::{Host, OriginalUri, Path, Query, State},
-    headers::{CacheControl, UserAgent},
     middleware,
     response::{Html, IntoResponse, Redirect, Response},
     routing::get,
-    Router, TypedHeader,
+    Router,
 };
+use axum_extra::TypedHeader;
+use headers::{CacheControl, UserAgent};
 use http::Uri;
 use serde::Deserialize;
 use tokio::sync::RwLock;
@@ -131,9 +132,7 @@ async fn redirect_fallback(OriginalUri(uri): OriginalUri) -> Redirect {
     Redirect::temporary(&redirect_uri(uri))
 }
 
-pub fn router(
-    state: Arc<RwLock<PhixivState>>,
-) -> Router<Arc<RwLock<PhixivState>>, axum::body::Body> {
+pub fn router(state: Arc<RwLock<PhixivState>>) -> Router<Arc<RwLock<PhixivState>>> {
     Router::new()
         .route("/:language/artworks/:id", get(artwork_handler))
         .route("/:language/artworks/:id/:image_index", get(artwork_handler))
@@ -141,5 +140,8 @@ pub fn router(
         .route("/artworks/:id/:image_index", get(artwork_handler))
         .route("/member_illust.php", get(member_illust_handler))
         .fallback(redirect_fallback)
-        .layer(middleware::from_fn_with_state(state, authorized_middleware))
+        .layer(middleware::from_fn_with_state(
+            state,
+            authorized_middleware::<axum::body::Body>,
+        ))
 }
