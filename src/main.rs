@@ -32,7 +32,7 @@ async fn main() -> anyhow::Result<()> {
 	dotenvy::dotenv().ok();
 
 	let addr: SocketAddr = format!(
-		"localhost:{}",
+		"127.0.0.1:{}",
 		env::var("PORT").unwrap_or_else(|_| String::from("3000"))
 	)
 	.parse()?;
