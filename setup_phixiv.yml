@@ -1,0 +1,69 @@
+---
+- name: Setup Phixiv Service
+  hosts: localhost
+  become: true
+  tasks:
+    - name: Create phixiv user
+      user:
+        name: phixiv
+        system: yes
+        shell: /bin/false
+
+    - name: Create directories for phixiv
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: phixiv
+        group: phixiv
+        mode: '0755'
+      loop:
+        - /opt/phixiv
+        - /var/lib/phixiv
+        - /etc/phixiv
+
+    - name: Copy phixiv binary to /opt/phixiv
+      copy:
+        src: ./phixiv
+        dest: /opt/phixiv/phixiv
+        owner: phixiv
+        group: phixiv
+        mode: '0700'
+
+    - name: Copy .env file to /etc/phixiv
+      copy:
+        src: ./env
+        dest: /etc/phixiv/.env
+        owner: phixiv
+        group: phixiv
+        mode: '0600'
+
+    - name: Create systemd service file for phixiv
+      copy:
+        content: |
+          [Unit]
+          Description=Phixiv Service
+          After=network.target
+
+          [Service]
+          Type=simple
+          User=phixiv
+          Group=phixiv
+          EnvironmentFile=/etc/phixiv/.env
+          ExecStart=/opt/phixiv/phixiv
+          Restart=on-failure
+
+          [Install]
+          WantedBy=multi-user.target
+        dest: /etc/systemd/system/phixiv.service
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Reload systemd daemon
+      command: systemctl daemon-reload
+
+    - name: Enable phixiv service
+      systemd:
+        name: phixiv
+        enabled: yes
+        state: started
