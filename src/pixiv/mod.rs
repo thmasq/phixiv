@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::env;
 
 use askama::Template;
-use html2md_rs::parser::safe_parse_html;
-use html2md_rs::structs::{Node, NodeType};
+use html5gum::{Token, Tokenizer};
+use html_escape::decode_html_entities;
 use itertools::Itertools;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -118,7 +118,7 @@ async fn ajax_request(illust_id: &String, language: &Option<String>, client: &Cl
 impl ArtworkListing {
 	#[must_use]
 	pub fn format_description(self) -> Self {
-		let description = deserialize_description(self.description);
+		let description = deserialize_description(&self.description);
 		Self {
 			image_proxy_urls: self.image_proxy_urls,
 			title: self.title,
@@ -254,24 +254,52 @@ impl ArtworkListing {
 	}
 }
 
-fn deserialize_description(description_html: String) -> String {
-	let description_md: Node = safe_parse_html(description_html).unwrap_or_default();
+fn utf8_to_string(data: Vec<u8>) -> Result<String, String> {
+	match String::from_utf8(data) {
+		Ok(s) => Ok(s),
+		Err(e) => Err(format!("Invalid UTF-8 sequence: {e:?}")),
+	}
+}
 
-	std::iter::once(description_md.value.unwrap_or_default())
-		.chain(description_md.children.into_iter().map(|child| {
-			std::iter::once(child.value.unwrap_or_default())
-				.chain(
-					child
-						.children
-						.into_iter()
-						.filter(|child2| child2.tag_name == Some(NodeType::Text))
-						.map(|child2| child2.value.unwrap_or_default()),
-				)
-				.filter(|s| !s.is_empty())
-				.collect::<Vec<String>>()
-				.join(" ")
-		}))
-		.filter(|s| !s.is_empty())
-		.collect::<Vec<String>>()
-		.join("\n")
+fn deserialize_description(description_html: &str) -> String {
+	let tokenizer = Tokenizer::new(description_html.as_bytes());
+	let mut result = String::new();
+	let mut last_was_text = false;
+
+	for token in tokenizer {
+		match token {
+			Ok(Token::String(data)) => match utf8_to_string(data.to_vec()) {
+				Ok(s) => {
+					if last_was_text {
+						result.push_str(&s);
+					} else {
+						if !result.is_empty() {
+							result.push('\n');
+						}
+						result.push_str(&s);
+						last_was_text = true;
+					}
+				},
+				Err(e) => {
+					eprintln!("Error converting UTF-8 data: {e}");
+				},
+			},
+			Ok(Token::StartTag(start_tag)) => match utf8_to_string(start_tag.name.to_vec()) {
+				Ok(name) => {
+					if name == "br" {
+						result.push('\n');
+					}
+				},
+				Err(e) => {
+					eprintln!("Error converting UTF-8 start tag name: {e}");
+				},
+			},
+			Ok(Token::EndTag { .. }) => {
+				last_was_text = false;
+			},
+			_ => {},
+		}
+	}
+
+	decode_html_entities(&result).to_string()
 }
